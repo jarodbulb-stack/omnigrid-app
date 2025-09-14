@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMNIGRID Notes</title>
+    <meta name="description" content="Advanced note-taking app with secure vault protection">
+    <meta name="theme-color" content="#00ffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OMNIGRID">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;700;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Orbitron', monospace; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%); color: #00ffff; min-height: 100vh; overflow-x: hidden; }
+        .grid-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px); background-size: 50px 50px; animation: gridShift 20s linear infinite; z-index: -1; }
+        @keyframes gridShift { 0% { transform: translate(0, 0); } 100% { transform: translate(50px, 50px); } }
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+        .header { text-align: center; margin-bottom: 40px; background: rgba(0, 0, 0, 0.8); padding: 25px; border: 2px solid #00ffff; border-radius: 15px; box-shadow: 0 0 40px rgba(0, 255, 255, 0.3); position: relative; overflow: hidden; }
+        .title-container { display: flex; align-items: center; justify-content: center; min-height: 80px; position: relative; }
+        .ring1 { animation: spin1 8s linear infinite; transform-origin: center; }
+        .ring2 { animation: spin2 6s linear infinite reverse; transform-origin: center; }
+        .ring3 { animation: spin3 4s linear infinite; transform-origin: center; }
+        @keyframes spin1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spin2 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spin3 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .main-title { 
+            font-size: 4em; 
+            font-weight: 400; 
+            text-shadow: 0 0 25px #00ffff; 
+            letter-spacing: 20px; 
+            text-transform: uppercase; 
+            z-index: 2; 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-stretch: ultra-expanded;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            -webkit-text-stroke: 1px transparent;
+        }
+        .main-title:hover {
+            text-shadow: 
+                0 0 25px #00ffff,
+                -2px 0 8px #ff0040,
+                2px 0 8px #ff0040,
+                0 -2px 8px #ff0040,
+                0 2px 8px #ff0040;
+            -webkit-text-stroke: 1px #ff0040;
+            transform: scale(1.02);
+        }
+        .orbit-o { 
+            width: 70px; 
+            height: 70px; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 8px; 
+            transition: all 0.4s ease;
+        }
+        .main-title:hover .orbit-o {
+            filter: drop-shadow(0 0 8px #ff0040);
+        }
+        .orbit-o svg { width: 100%; height: 100%; }
+        .main-grid { display: grid; grid-template-columns: 1fr 0.6fr; gap: 30px; min-height: 600px; transition: all 0.3s ease; }
+        .main-grid.vault-open { grid-template-columns: 1fr; }
+        .panel { background: rgba(0, 0, 0, 0.85); border: 2px solid #00ffff; border-radius: 15px; padding: 25px; box-shadow: 0 0 30px rgba(0, 255, 255, 0.25); transition: all 0.3s ease; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .panel:hover { transform: translateY(-5px); box-shadow: 0 10px 50px rgba(0, 255, 255, 0.35); }
+        .panel h2 { color: #ff6b35; margin-bottom: 15px; font-size: 1.5em; text-shadow: 0 0 10px #ff6b35; text-align: center; padding-bottom: 15px; border-bottom: 1px solid #333; }
+        .vault-panel { border-color: #ff6b35; }
+        .search-input { width: 100%; padding: 12px 15px; background: rgba(0, 0, 0, 0.7); border: 2px solid #333; border-radius: 8px; color: #00ffff; font-family: 'Orbitron', monospace; margin-bottom: 15px; font-size: 0.95em; transition: all 0.3s ease; }
+        .search-input:focus { outline: none; border-color: #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
+        .button-row { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn { padding: 8px 12px; background: linear-gradient(45deg, #00ffff, #ff6b35); border: none; border-radius: 20px; color: #000; font-family: 'Orbitron', monospace; font-weight: 700; cursor: pointer; transition: all 0.3s ease; flex: 1; font-size: 0.75em; text-transform: uppercase; min-width: 60px; height: 36px; display: flex; align-items: center; justify-content: center; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4); }
+        .install-btn { background: linear-gradient(45deg, #ff0040, #ff6b35) !important; animation: glow 2s ease-in-out infinite alternate; }
+        .hide-btn { background: linear-gradient(45deg, #666, #999) !important; }
+        @keyframes glow { from { box-shadow: 0 0 5px #ff0040; } to { box-shadow: 0 0 20px #ff0040, 0 0 30px #ff0040; } }
+        .note-list { flex: 1; overflow-y: auto; border: 1px solid #333; border-radius: 10px; background: rgba(0, 0, 0, 0.3); min-height: 400px; padding: 10px; }
+        .note-card { background: rgba(0, 255, 255, 0.08); border-bottom: 1px solid #333; padding: 15px; cursor: pointer; transition: all 0.3s ease; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 5px; }
+        .note-card:hover { background: rgba(0, 255, 255, 0.15); transform: translateX(5px); }
+        .note-info { flex: 1; }
+        .note-name { font-weight: 700; font-size: 1em; margin-bottom: 5px; color: #fff; }
+        .note-date { font-size: 0.75em; color: #ff6b35; opacity: 0.8; }
+        .note-buttons { display: flex; gap: 6px; }
+        .small-btn { background: rgba(0, 255, 255, 0.3); border: 1px solid #00ffff; color: #00ffff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-family: 'Orbitron', monospace; font-size: 0.7em; transition: all 0.3s ease; font-weight: 600; height: 24px; min-width: 40px; }
+        .small-btn.delete { background: rgba(255, 0, 0, 0.3); border-color: #ff4444; color: #ff4444; }
+        .small-btn:hover { transform: scale(1.1); box-shadow: 0 0 10px currentColor; }
+        .vault-locked { text-align: center; padding: 80px 30px; color: #888; overflow: hidden; position: relative; }
+        .unlock-btn { background: linear-gradient(45deg, #ff6b35, #ffaa44); color: #000; border: none; padding: 15px 30px; border-radius: 10px; font-family: 'Orbitron', monospace; font-weight: 700; cursor: pointer; font-size: 1em; margin: 20px 0; transition: all 0.3s ease; }
+        .unlock-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255, 107, 53, 0.4); }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); z-index: 1000; backdrop-filter: blur(8px); }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-box { background: linear-gradient(135deg, #0a0a0a, #1a1a2e); border: 2px solid #00ffff; border-radius: 15px; padding: 30px; max-width: 800px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0, 255, 255, 0.4); }
+        .modal h3 { color: #ff6b35; margin-bottom: 25px; font-size: 1.6em; text-align: center; text-shadow: 0 0 10px #ff6b35; }
+        .field { margin-bottom: 20px; }
+        .field label { display: block; margin-bottom: 8px; color: #00ffff; font-weight: 700; font-size: 1em; }
+        .field input, .field textarea { width: 100%; padding: 12px 15px; background: rgba(0, 0, 0, 0.7); border: 2px solid #333; border-radius: 8px; color: #00ffff; font-family: 'Orbitron', monospace; transition: all 0.3s ease; font-size: 1em; }
+        .field textarea { min-height: 300px; font-family: 'Courier New', monospace; resize: vertical; }
+        .field input:focus, .field textarea:focus { outline: none; border-color: #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
+        .notification { position: fixed; top: 20px; right: 20px; background: linear-gradient(45deg, #00ffff, #ff6b35); color: #000; padding: 15px 25px; border-radius: 10px; font-weight: 700; box-shadow: 0 0 30px rgba(0, 255, 255, 0.5); transform: translateX(400px); transition: all 0.3s ease; z-index: 2000; font-size: 0.95em; }
+        .notification.show { transform: translateX(0); }
+        .empty { text-align: center; padding: 80px 30px; color: #666; font-style: italic; }
+        .stats { text-align: center; margin-top: 15px; padding: 10px; background: rgba(0, 255, 255, 0.1); border-radius: 8px; font-size: 0.85em; color: #888; }
+        .hidden { display: none !important; }
+        .install-prompt { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #ff0040, #ff6b35); color: #fff; padding: 15px 25px; border-radius: 15px; font-weight: 700; box-shadow: 0 0 30px rgba(255, 0, 64, 0.5); z-index: 3000; font-size: 0.95em; cursor: pointer; animation: bounce 2s infinite; border: 2px solid #fff; display: none; }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); } 40% { transform: translateX(-50%) translateY(-10px); } 60% { transform: translateX(-50%) translateY(-5px); } }
+        .offline-indicator { position: fixed; top: 70px; right: 20px; background: #ff4444; color: #fff; padding: 10px 15px; border-radius: 8px; font-size: 0.8em; display: none; z-index: 2000; }
+        .pwa-info { background: rgba(255, 0, 64, 0.1); border: 1px solid #ff0040; border-radius: 10px; padding: 15px; margin-bottom: 15px; color: #ff6b35; font-size: 0.85em; text-align: center; display: none; }
+        @media (max-width: 1024px) { 
+            .main-grid { grid-template-columns: 1fr; gap: 20px; } 
+            .main-title { font-size: 3em; letter-spacing: 15px; } 
+            .orbit-o { width: 55px; height: 55px; } 
+        }
+        @media (max-width: 768px) { 
+            .container { padding: 15px; } 
+            .main-title { font-size: 2.5em; letter-spacing: 10px; } 
+            .modal-box { padding: 20px; } 
+            .button-row { flex-direction: column; } 
+            .btn { min-width: 100%; } 
+            .orbit-o { width: 45px; height: 45px; } 
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    <div class="container">
+        <div class="header">
+            <div class="title-container">
+                <div class="main-title">
+                    <div class="orbit-o">
+                        <svg viewBox="0 0 100 100">
+                            <g class="ring1">
+                                <ellipse cx="50" cy="50" rx="45" ry="25" fill="none" stroke="#00ffff" stroke-width="2" opacity="1"/>
+                            </g>
+                            <g class="ring2">
+                                <ellipse cx="50" cy="50" rx="35" ry="20" fill="none" stroke="#00ffff" stroke-width="1.5" opacity="1"/>
+                            </g>
+                            <g class="ring3">
+                                <ellipse cx="50" cy="50" rx="25" ry="15" fill="none" stroke="#00ffff" stroke-width="2" opacity="1"/>
+                            </g>
+                        </svg>
+                    </div>
+                    MNIGRID
+                </div>
+            </div>
+        </div>
+        
+        <div class="pwa-info" id="pwaInfo">
+            📱 <strong>Install OMNIGRID</strong> - Save this HTML file and open it locally. For mobile: Add to Home Screen from browser menu. Click Install button below when available.
+        </div>
+        
+        <div class="main-grid" id="mainGrid">
+            <div class="panel" id="generalPanel">
+                <h2>GENERAL NOTES</h2>
+                <input type="text" class="search-input" id="generalSearch" placeholder="Search notes..." oninput="searchNotes('general')">
+                <div class="button-row">
+                    <button class="btn" onclick="addNote('general')">New</button>
+                    <button class="btn" onclick="exportData('general')">Export</button>
+                    <button class="btn" onclick="importData('general')">Import</button>
+                    <button class="btn" onclick="clearGeneral()">Clear</button>
+                    <button class="btn install-btn" id="installBtn" onclick="installApp()">📱 Install</button>
+                    <button class="btn hide-btn" id="hideInfoBtn" onclick="hidePWAInfo()">❌ Hide</button>
+                </div>
+                <div class="note-list" id="generalList"></div>
+                <div class="stats"><span id="generalCount">0 notes</span></div>
+            </div>
+            <div class="panel vault-panel" id="vaultPanel">
+                <h2>VAULT NOTES</h2>
+                <div id="vaultLocked" class="vault-locked">
+                    <h4>Secure Storage</h4><p>PIN Protected</p>
+                    <button class="unlock-btn" onclick="unlockVault()">UNLOCK</button>
+                </div>
+                <div id="vaultUnlocked" style="display: none;">
+                    <input type="text" class="search-input" id="vaultSearch" placeholder="Search..." oninput="searchNotes('vault')">
+                    <div class="button-row">
+                        <button class="btn" onclick="addNote('vault')">New</button>
+                        <button class="btn" onclick="exportData('vault')">Export</button>
+                        <button class="btn" onclick="importData('vault')">Import</button>
+                        <button class="btn" onclick="clearVault()">Clear</button>
+                        <button class="btn" onclick="changePIN()">PIN</button>
+                        <button class="btn" onclick="lockVault()">Lock</button>
+                    </div>
+                    <div class="note-list" id="vaultList"></div>
+                    <div class="stats"><span id="vaultCount">0 notes</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="install-prompt" id="installPrompt" onclick="installApp()">
+        📱 Install OMNIGRID PWA - Tap Here!
+    </div>
+    
+    <div class="offline-indicator" id="offlineIndicator">
+        🔄 Working Offline
+    </div>
+    
+    <div class="modal" id="noteModal"><div class="modal-box"><h3 id="modalTitle">NEW NOTE</h3><div class="field"><label>Title</label><input type="text" id="noteTitle" placeholder="Note title"></div><div class="field"><label>Content</label><textarea id="noteContent" placeholder="Note content..."></textarea></div><div class="button-row"><button class="btn" onclick="saveNote()">Save</button><button class="btn" onclick="closeModal()">Cancel</button></div></div></div>
+    <div class="modal" id="viewModal"><div class="modal-box"><h3 id="viewTitle">View Note</h3><div class="field"><textarea id="viewContent" readonly></textarea></div><div class="button-row"><button class="btn" onclick="editCurrent()">Edit</button><button class="btn" onclick="closeModal()">Close</button></div></div></div>
+    <div class="modal" id="pinModal"><div class="modal-box"><h3>Change PIN</h3><div class="field"><label>Current PIN</label><input type="password" id="currentPIN" placeholder="Current PIN"></div><div class="field"><label>New PIN</label><input type="password" id="newPIN" placeholder="New PIN (4+ digits)"></div><div class="field"><label>Confirm PIN</label><input type="password" id="confirmPIN" placeholder="Confirm new PIN"></div><div class="button-row"><button class="btn" onclick="updatePIN()">Change</button><button class="btn" onclick="closeModal()">Cancel</button></div></div></div>
+    <div id="notification" class="notification"></div>
+    
+    <script>
+        // PWA and App State Variables
+        let deferredPrompt = null;
+        let isOnline = navigator.onLine;
+        
+        const app = {
+            generalNotes: [],
+            vaultNotes: [],
+            vaultPIN: '1234',
+            vaultOpen: false,
+            currentType: '',
+            currentID: null,
+            editing: false
+        };
+        
+        let filteredGeneral = [];
+        let filteredVault = [];
+        
+        // PWA Functions
+        function createManifest() {
+            const manifest = {
+                name: "OMNIGRID Notes",
+                short_name: "OMNIGRID",
+                description: "Advanced note-taking app with secure vault protection",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#0a0a0a",
+                theme_color: "#00ffff",
+                orientation: "portrait",
+                scope: "./",
+                icons: [
+                    {
+                        src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIGZpbGw9IiMwYTBhMGEiLz48ZWxsaXBzZSBjeD0iOTYiIGN5PSI5NiIgcng9IjcwIiByeT0iMzUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZmZmZiIgc3Ryb2tlLXdpZHRoPSIzIiBvcGFjaXR5PSIxIi8+PGVsbGlwc2UgY3g9Ijk2IiBjeT0iOTYiIHJ4PSI1NSIgcnk9IjI4IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMGZmZmYiIHN0cm9rZS13aWR0aD0iMiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9Ijk2IiBjeT0iOTYiIHJ4PSI0MCIgcnk9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMGZmZmYiIHN0cm9rZS13aWR0aD0iMyIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==",
+                        sizes: "192x192",
+                        type: "image/svg+xml"
+                    },
+                    {
+                        src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwYTBhMGEiLz48ZWxsaXBzZSBjeD0iMjU2IiBjeT0iMjU2IiByeD0iMTgwIiByeT0iOTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZmZmZiIgc3Ryb2tlLXdpZHRoPSI4IiBvcGFjaXR5PSIxIi8+PGVsbGlwc2UgY3g9IjI1NiIgY3k9IjI1NiIgcng9IjE0MCIgcnk9IjcwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMGZmZmYiIHN0cm9rZS13aWR0aD0iNiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9IjI1NiIgY3k9IjI1NiIgcng9IjEwMCIgcnk9IjUwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMGZmZmYiIHN0cm9rZS13aWR0aD0iOCIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==",
+                        sizes: "512x512",
+                        type: "image/svg+xml"
+                    }
+                ],
+                categories: ["productivity", "utilities"]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestUrl;
+            document.head.appendChild(link);
+        }
+        
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    const CACHE_NAME = 'omnigrid-v3';
+                    const urlsToCache = ['./', '../', location.pathname];
+                    
+                    self.addEventListener('install', (event) => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then((cache) => cache.addAll(urlsToCache).catch(() => cache.add('./')))
+                        );
+                        self.skipWaiting();
+                    });
+                    
+                    self.addEventListener('fetch', (event) => {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then((response) => response || fetch(event.request).catch(() => caches.match('./')))
+                        );
+                    });
+                    
+                    self.addEventListener('activate', (event) => {
+                        event.waitUntil(
+                            caches.keys().then((cacheNames) => 
+                                Promise.all(cacheNames.map((cacheName) => 
+                                    cacheName !== CACHE_NAME ? caches.delete(cacheName) : null
+                                ))
+                            )
+                        );
+                        return self.clients.claim();
+                    });
+                `;
+                
+                const blob = new Blob([swCode], {type: 'application/javascript'});
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(() => showMessage('🔄 App ready for offline use'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            }
+        }
+        
+        function isPWA() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone === true ||
+                   document.referrer.includes('android-app://');
+        }
+        
+        function hidePWAInfo() {
+            document.getElementById('pwaInfo').style.display = 'none';
+            document.getElementById('installBtn').style.display = 'none';
+            document.getElementById('installPrompt').style.display = 'none';
+            document.getElementById('hideInfoBtn').style.display = 'none';
+            localStorage.setItem('omnigrid_info_hidden', 'true');
+            showMessage('✅ Installation info hidden');
+        }
+        
+        function showPWAInfo() {
+            const isHidden = localStorage.getItem('omnigrid_info_hidden') === 'true';
+            const isInstalled = isPWA() || localStorage.getItem('omnigrid_installed') === 'true';
+            
+            if (!isHidden && !isInstalled) {
+                document.getElementById('pwaInfo').style.display = 'block';
+                document.getElementById('installBtn').style.display = 'flex';
+                document.getElementById('hideInfoBtn').style.display = 'flex';
+            }
+        }
+        
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showMessage('🎉 OMNIGRID installed successfully!');
+                        hidePWAInfo();
+                        localStorage.setItem('omnigrid_installed', 'true');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                showMessage('💡 Add to Home Screen from browser menu (⋮ > Add to Home Screen)');
+            }
+        }
+        
+        // PWA Event Listeners
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installPrompt').style.display = 'block';
+            showMessage('📱 OMNIGRID can be installed!');
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            showMessage('🎉 OMNIGRID installed successfully!');
+            hidePWAInfo();
+            localStorage.setItem('omnigrid_installed', 'true');
+        });
+        
+        window.addEventListener('online', () => {
+            isOnline = true;
+            document.getElementById('offlineIndicator').style.display = 'none';
+            showMessage('🌐 Back online');
+        });
+        
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            document.getElementById('offlineIndicator').style.display = 'block';
+            showMessage('📱 Working offline');
+        });
+        
+        // Core App Functions
+        function saveData() {
+            try {
+                localStorage.setItem('omnigrid_general', JSON.stringify(app.generalNotes));
+                localStorage.setItem('omnigrid_vault', JSON.stringify(app.vaultNotes));
+                localStorage.setItem('omnigrid_pin', app.vaultPIN);
+            } catch (e) {
+                showMessage('⚠️ Storage error - data may not be saved');
+            }
+        }
+        
+        function loadData() {
+            try {
+                const g = localStorage.getItem('omnigrid_general');
+                const v = localStorage.getItem('omnigrid_vault');
+                const p = localStorage.getItem('omnigrid_pin');
+                if (g) app.generalNotes = JSON.parse(g);
+                if (v) app.vaultNotes = JSON.parse(v);
+                if (p) app.vaultPIN = p;
+            } catch (e) {
+                showMessage('⚠️ Error loading saved data');
+            }
+        }
+        
+        function initApp() {
+            loadData();
+            
+            if (app.generalNotes.length === 0) {
+                app.generalNotes = [{
+                    id: 1,
+                    title: "Welcome to OMNIGRID PWA! 🚀",
+                    content: `🎉 OMNIGRID Notes - Progressive Web App
+
+✨ Amazing Features:
+• 📱 Works on PC, Phone & Tablet
+• 🔒 Secure PIN-protected vault
+• 💾 Works completely offline
+• 📤 Export/Import your notes
+• 🎨 Stunning hover effects
+• ⚡ Lightning fast performance
+
+📱 HOW TO INSTALL:
+📋 Desktop: Click the "📱 Install" button
+📋 Mobile: Browser menu → "Add to Home Screen"
+📋 File saved: Just open this HTML file anytime!
+
+🔐 Vault PIN: 1234 (changeable)
+
+Start creating your notes! 📝`,
+                    created: new Date().toISOString()
+                }];
+                saveData();
+            }
+            
+            filteredGeneral = [...app.generalNotes];
+            filteredVault = [...app.vaultNotes];
+            renderNotes('general');
+            updateCounts();
+            
+            createManifest();
+            registerServiceWorker();
+            showPWAInfo();
+            
+            if (!isOnline) {
+                document.getElementById('offlineIndicator').style.display = 'block';
+            }
+        }
+        
+        function renderNotes(type) {
+            const container = document.getElementById(type + 'List');
+            const notes = type === 'general' ? filteredGeneral : filteredVault;
+            
+            if (notes.length === 0) {
+                container.innerHTML = '<div class="empty">No notes found</div>';
+                return;
+            }
+            
+            container.innerHTML = notes.map(note => `
+                <div class="note-card" onclick="viewNote('${type}', ${note.id})">
+                    <div class="note-info">
+                        <div class="note-name">${note.title}</div>
+                        <div class="note-date">${new Date(note.created).toLocaleDateString()}</div>
+                    </div>
+                    <div class="note-buttons" onclick="event.stopPropagation()">
+                        <button class="small-btn" onclick="editNote('${type}', ${note.id})">Edit</button>
+                        <button class="small-btn delete" onclick="deleteNote('${type}', ${note.id})">Del</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function searchNotes(type) {
+            const term = document.getElementById(type + 'Search').value.toLowerCase();
+            const all = type === 'general' ? app.generalNotes : app.vaultNotes;
+            
+            if (type === 'general') {
+                filteredGeneral = all.filter(n => 
+                    n.title.toLowerCase().includes(term) || 
+                    n.content.toLowerCase().includes(term)
+                );
+            } else {
+                filteredVault = all.filter(n => 
+                    n.title.toLowerCase().includes(term) || 
+                    n.content.toLowerCase().includes(term)
+                );
+            }
+            renderNotes(type);
+        }
+        
+        function unlockVault() {
+            const pin = prompt('Enter PIN (default: 1234):');
+            if (pin === app.vaultPIN) {
+                app.vaultOpen = true;
+                document.getElementById('vaultLocked').style.display = 'none';
+                document.getElementById('vaultUnlocked').style.display = 'block';
+                document.getElementById('mainGrid').classList.add('vault-open');
+                document.getElementById('generalPanel').classList.add('hidden');
+                renderNotes('vault');
+                showMessage('🔓 Vault Unlocked');
+            } else if (pin) {
+                showMessage('❌ Invalid PIN');
+            }
+        }
+        
+        function lockVault() {
+            app.vaultOpen = false;
+            document.getElementById('vaultLocked').style.display = 'block';
+            document.getElementById('vaultUnlocked').style.display = 'none';
+            document.getElementById('mainGrid').classList.remove('vault-open');
+            document.getElementById('generalPanel').classList.remove('hidden');
+            showMessage('🔒 Vault Locked');
+        }
+        
+        function addNote(type) {
+            if (type === 'vault' && !app.vaultOpen) {
+                return showMessage('🔒 Unlock vault first');
+            }
+            
+            app.currentType = type;
+            app.currentID = null;
+            app.editing = false;
+            document.getElementById('modalTitle').textContent = 'NEW NOTE';
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteContent').value = '';
+            showModal('noteModal');
+        }
+        
+        function saveNote() {
+            const title = document.getElementById('noteTitle').value.trim();
+            const content = document.getElementById('noteContent').value.trim();
+            
+            if (!title || !content) {
+                return showMessage('📝 Please enter both title and content');
+            }
+            
+            const notes = app.currentType === 'general' ? app.generalNotes : app.vaultNotes;
+            
+            if (app.editing && app.currentID) {
+                const note = notes.find(n => n.id === app.currentID);
+                if (note) {
+                    note.title = title;
+                    note.content = content;
+                    note.modified = new Date().toISOString();
+                }
+            } else {
+                notes.push({
+                    id: Date.now(),
+                    title,
+                    content,
+                    created: new Date().toISOString()
+                });
+            }
+            
+            if (app.currentType === 'general') {
+                filteredGeneral = [...app.generalNotes];
+            } else {
+                filteredVault = [...app.vaultNotes];
+            }
+            
+            saveData();
+            renderNotes(app.currentType);
+            updateCounts();
+            closeModal();
+            showMessage('💾 Note saved successfully!');
+        }
+        
+        function viewNote(type, id) {
+            const notes = type === 'general' ? app.generalNotes : app.vaultNotes;
+            const note = notes.find(n => n.id === id);
+            
+            if (note) {
+                app.currentType = type;
+                app.currentID = id;
+                document.getElementById('viewTitle').textContent = note.title;
+                document.getElementById('viewContent').value = note.content;
+                showModal('viewModal');
+            }
+        }
+        
+        function editNote(type, id) {
+            const notes = type === 'general' ? app.generalNotes : app.vaultNotes;
+            const note = notes.find(n => n.id === id);
+            
+            if (note) {
+                app.currentType = type;
+                app.currentID = id;
+                app.editing = true;
+                document.getElementById('modalTitle').textContent = 'EDIT NOTE';
+                document.getElementById('noteTitle').value = note.title;
+                document.getElementById('noteContent').value = note.content;
+                showModal('noteModal');
+            }
+        }
+        
+        function editCurrent() {
+            closeModal();
+            setTimeout(() => editNote(app.currentType, app.currentID), 100);
+        }
+        
+        function deleteNote(type, id) {
+            const notes = type === 'general' ? app.generalNotes : app.vaultNotes;
+            const note = notes.find(n => n.id === id);
+            
+            if (note && confirm(`Delete "${note.title}"?`)) {
+                const index = notes.findIndex(n => n.id === id);
+                notes.splice(index, 1);
+                
+                if (type === 'general') {
+                    filteredGeneral = [...app.generalNotes];
+                } else {
+                    filteredVault = [...app.vaultNotes];
+                }
+                
+                saveData();
+                renderNotes(type);
+                updateCounts();
+                showMessage('🗑️ Note deleted');
+            }
+        }
+        
+        function clearGeneral() {
+            if (confirm('Delete all general notes? This cannot be undone.')) {
+                app.generalNotes = [];
+                filteredGeneral = [];
+                renderNotes('general');
+                updateCounts();
+                saveData();
+                showMessage('🧹 General notes cleared');
+            }
+        }
+        
+        function clearVault() {
+            if (confirm('Delete all vault notes? This cannot be undone.')) {
+                app.vaultNotes = [];
+                filteredVault = [];
+                renderNotes('vault');
+                updateCounts();
+                saveData();
+                showMessage('🧹 Vault notes cleared');
+            }
+        }
+        
+        function exportData(type) {
+            const notes = type === 'general' ? app.generalNotes : app.vaultNotes;
+            
+            if (notes.length === 0) {
+                return showMessage('📂 No notes to export');
+            }
+            
+            const data = {
+                notes,
+                type,
+                exportDate: new Date().toISOString(),
+                appVersion: 'OMNIGRID PWA v3.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `omnigrid-${type}-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage('📤 Notes exported successfully!');
+        }
+        
+        function importData(type) {
+            if (type === 'vault' && !app.vaultOpen) {
+                return showMessage('🔒 Unlock vault first');
+            }
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        const notes = data.notes || data;
+                        
+                        if (!Array.isArray(notes)) {
+                            return showMessage('❌ Invalid file format');
+                        }
+                        
+                        const target = type === 'general' ? app.generalNotes : app.vaultNotes;
+                        let count = 0;
+                        
+                        notes.forEach(note => {
+                            if (note.title && note.content && !target.some(n => n.title === note.title)) {
+                                target.push({
+                                    ...note,
+                                    id: Date.now() + Math.random(),
+                                    imported: new Date().toISOString()
+                                });
+                                count++;
+                            }
+                        });
+                        
+                        if (type === 'general') {
+                            filteredGeneral = [...app.generalNotes];
+                        } else {
+                            filteredVault = [...app.vaultNotes];
+                        }
+                        
+                        saveData();
+                        renderNotes(type);
+                        updateCounts();
+                        showMessage(`📥 Imported ${count} notes successfully!`);
+                        
+                    } catch {
+                        showMessage('❌ Invalid file format');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function changePIN() {
+            document.getElementById('currentPIN').value = '';
+            document.getElementById('newPIN').value = '';
+            document.getElementById('confirmPIN').value = '';
+            showModal('pinModal');
+        }
+        
+        function updatePIN() {
+            const current = document.getElementById('currentPIN').value;
+            const newPin = document.getElementById('newPIN').value;
+            const confirm = document.getElementById('confirmPIN').value;
+            
+            if (!current || !newPin || !confirm) {
+                return showMessage('📝 Please fill all fields');
+            }
+            
+            if (current !== app.vaultPIN) {
+                return showMessage('❌ Current PIN is incorrect');
+            }
+            
+            if (newPin !== confirm) {
+                return showMessage('❌ New PINs do not match');
+            }
+            
+            if (newPin.length < 4) {
+                return showMessage('🔢 PIN must be at least 4 digits');
+            }
+            
+            app.vaultPIN = newPin;
+            saveData();
+            closeModal();
+            showMessage('🔐 PIN changed successfully!');
+        }
+        
+        function showModal(id) {
+            document.getElementById(id).classList.add('show');
+        }
+        
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+        }
+        
+        function showMessage(text) {
+            const notification = document.getElementById('notification');
+            notification.textContent = text;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+        
+        function updateCounts() {
+            document.getElementById('generalCount').textContent = `${app.generalNotes.length} notes`;
+            document.getElementById('vaultCount').textContent = `${app.vaultNotes.length} notes`;
+        }
+        
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
